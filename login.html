@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIT Games - Auth & Admin Panel</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        
+        .auth-card {
+            background: #1e293b; padding: 30px; border-radius: 20px; width: 100%; max-width: 420px;
+            border: 2px solid #8b5cf6; box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); text-align: center;
+        }
+        .auth-card h1 { font-size: 1.8rem; color: #38bdf8; margin-bottom: 20px; }
+        
+        .tabs { display: flex; background: #0f172a; border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; font-weight: bold; cursor: pointer; border-radius: 8px; }
+        .tab-btn.active { background: #8b5cf6; color: white; }
+
+        .input-field { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #475569; background: #0f172a; color: white; margin-bottom: 12px; outline: none; }
+        .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-purple { background: #8b5cf6; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+
+        /* Admin Dashboard View */
+        #admin-panel { display: none; width: 100%; max-width: 800px; background: #1e293b; border-radius: 20px; padding: 24px; border: 2px solid #ef4444; }
+        .admin-section { margin-bottom: 20px; padding: 15px; background: #0f172a; border-radius: 12px; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #334155; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN & SIGNUP CARD -->
+    <div class="auth-card" id="auth-box">
+        <h1>AIT Portal Login</h1>
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-in" onclick="switchTab('in')">Sign In</button>
+            <button class="tab-btn" id="tab-up" onclick="switchTab('up')">Sign Up</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <div id="form-signin">
+            <input type="text" id="in-user" class="input-field" placeholder="Username / പേര്">
+            <input type="password" id="in-pass" class="input-field" placeholder="Password / പാസ്‌വേഡ്">
+            <button class="btn btn-purple" onclick="handleSignIn()">Sign In</button>
+        </div>
+
+        <!-- Sign Up Form -->
+        <div id="form-signup" style="display: none;">
+            <input type="text" id="up-user" class="input-field" placeholder="പുതിയ Username അടിയ്ക്കുക">
+            <input type="password" id="up-pass" class="input-field" placeholder="പുതിയ Password ഇടുക്ക">
+            <button class="btn btn-purple" style="background:#10b981;" onclick="handleSignUp()">Account ഉണ്ടാക്കുക</button>
+        </div>
+
+        <a href="index.html" style="display:inline-block; margin-top:15px; color:#94a3b8; font-size:0.85rem; text-decoration:none;">⬅️ ലോഗിൻ ചെയ്യാതെ പ്രവേശിക്കുക (Guest)</a>
+    </div>
+
+    <!-- SECRET ADMIN PANEL -->
+    <div id="admin-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color:#ef4444;">🔑 Admin Dashboard (AIT Control Center)</h2>
+            <button class="btn btn-danger" style="width:auto; padding:8px 16px;" onclick="location.reload()">Logout</button>
+        </div>
+
+        <!-- Manage Games Section -->
+        <div class="admin-section">
+            <h3 style="color:#38bdf8; margin-bottom:10px;">🎮 Manage Games (പബ്ലിഷ് ചെയ്ത ഗെയിമുകൾ)</h3>
+            <div id="admin-games-list">ലോഡ് ചെയ്യുന്നു...</div>
+        </div>
+
+        <!-- Manage Users Section -->
+        <div class="admin-section">
+            <h3 style="color:#10b981; margin-bottom:10px;">👥 Manage Users (ഉപയോക്താക്കൾ)</h3>
+            <div id="admin-users-list">ലോഡ് ചെയ്യുന്നു...</div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXMAdXRsyubfJFZRUoXYoYjBWjBZd7VxE",
+            authDomain: "ait-game-store.firebaseapp.com",
+            projectId: "ait-game-store",
+            databaseURL: "https://ait-game-store-default-rtdb.firebaseio.com"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function switchTab(type) {
+            if(type === 'in') {
+                document.getElementById('tab-in').classList.add('active');
+                document.getElementById('tab-up').classList.remove('active');
+                document.getElementById('form-signin').style.display = 'block';
+                document.getElementById('form-signup').style.display = 'none';
+            } else {
+                document.getElementById('tab-up').classList.add('active');
+                document.getElementById('tab-in').classList.remove('active');
+                document.getElementById('form-signup').style.display = 'block';
+                document.getElementById('form-signin').style.display = 'none';
+            }
+        }
+
+        function handleSignIn() {
+            const user = document.getElementById('in-user').value.trim();
+            const pass = document.getElementById('in-pass').value.trim();
+
+            // Secret Admin Entry Condition
+            if(user === "AIT" && pass === "2012") {
+                document.getElementById('auth-box').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                loadAdminData();
+                return;
+            }
+
+            // Normal User Authentication
+            db.ref('users/' + user).once('value').then(snap => {
+                if(snap.exists() && snap.val().pass === pass) {
+                    alert("വിജയകരമായി ലോഗിൻ ചെയ്തു!");
+                    window.location.href = "index.html"; // Redirect to Main Gaming Website
+                } else {
+                    alert("തെറ്റായ Username അല്ലെങ്കിൽ Password!");
+                }
+            });
+        }
+
+        function handleSignUp() {
+            const user = document.getElementById('up-user').value.trim();
+            const pass = document.getElementById('up-pass').value.trim();
+
+            if(!user || !pass) {
+                alert("എല്ലാ വിവരങ്ങളും നൽകുക!");
+                return;
+            }
+
+            db.ref('users/' + user).set({
+                user: user,
+                pass: pass,
+                createdAt: Date.now()
+            }, (err) => {
+                if(!err) {
+                    alert("അക്കൗണ്ട് നിർമ്മാണം പൂർത്തിയായി! ഇനി Sign In ചെയ്യുക.");
+                    switchTab('in');
+                }
+            });
+        }
+
+        function loadAdminData() {
+            // Load Games for Admin Delete Action
+            db.ref('games').on('value', snap => {
+                const games = snap.val() || {};
+                const list = document.getElementById('admin-games-list');
+                list.innerHTML = '';
+                Object.keys(games).forEach(id => {
+                    list.innerHTML += `
+                        <div class="item-row">
+                            <span>🎮 <strong>${games[id].title}</strong></span>
+                            <button class="btn btn-danger" style="width:auto; padding:4px 10px; font-size:0.8rem;" onclick="deleteGame('${id}')">Delete Game</button>
+                        </div>
+                    `;
+                });
+            });
+
+            // Load Registered Users
+            db.ref('users').on('value', snap => {
+                const users = snap.val() || {};
+                const list = document.getElementById('admin-users-list');
+                list.innerHTML = '';
+                Object.keys(users).forEach(u => {
+                    list.innerHTML += `
+                        <div class="item-row">
+                            <span>👤 Username: <strong>${u}</strong></span>
+                            <button class="btn btn-danger" style="width:auto; padding:4px 10px; font-size:0.8rem;" onclick="deleteUser('${u}')">Delete User</button>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        function deleteGame(id) {
+            if(confirm("ഈ ഗെയിം നീക്കം ചെയ്യണം എന്ന് ഉറപ്പാണോ?")) {
+                db.ref('games/' + id).remove();
+            }
+        }
+
+        function deleteUser(username) {
+            if(confirm("ഈ യൂസറെ നീക്കം ചെയ്യണം എന്ന് ഉറപ്പാണോ?")) {
+                db.ref('users/' + username).remove();
+            }
+        }
+    </script>
+</body>
+</html>
