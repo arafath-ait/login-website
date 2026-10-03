@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIT Play - Admin Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; padding: 20px; }
+    
+    .login-card { max-width: 350px; margin: 80px auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; text-align: center; }
+    .login-card input { width: 100%; padding: 10px; margin: 10px 0; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px; }
+    .btn { background: #38bdf8; color: #000; font-weight: bold; padding: 10px; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+    
+    .admin-dashboard { display: none; max-width: 800px; margin: 0 auto; }
+    .section-box { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px; }
+    .section-box h2 { color: #38bdf8; margin-bottom: 15px; }
+    .section-box input, .section-box textarea { width: 100%; padding: 10px; margin-bottom: 10px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px; }
+    
+    .item-card { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .delete-btn { background: #ef4444; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div class="login-card" id="loginBox">
+    <h2>AIT Admin Login</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button class="btn" id="loginBtn">Login</button>
+  </div>
+
+  <!-- Main Dashboard Screen -->
+  <div class="admin-dashboard" id="dashboard">
+    <h1 style="margin-bottom: 20px;">AIT Play Control Panel 🛡</h1>
+    
+    <!-- Game Publish Box -->
+    <div class="section-box">
+      <h2>Publish New Game 🚀</h2>
+      <input type="text" id="gameTitle" placeholder="Game Title">
+      <textarea id="gameCode" rows="6" placeholder="Paste Full HTML/CSS/JS Code Here..."></textarea>
+      <button class="btn" id="publishBtn" style="background: #22c55e; color: #fff;">Publish Live</button>
+    </div>
+
+    <!-- Live Games Management Box -->
+    <div class="section-box">
+      <h2>Manage Live Games 🎮</h2>
+      <div id="gamesContainer">Loading live games...</div>
+    </div>
+
+    <!-- Requested Ideas Box -->
+    <div class="section-box">
+      <h2>Requested Ideas List 💡</h2>
+      <div id="ideasContainer">Loading ideas...</div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXMAdXRsyubfJFZRUoXYoYjBWjBZd7VxE",
+      authDomain: "ait-game-store.firebaseapp.com",
+      projectId: "ait-game-store",
+      storageBucket: "ait-game-store.firebasestorage.app",
+      messagingSenderId: "146438462272",
+      appId: "1:146438462272:web:92a9cea7d1383f650d78a5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Login Logic
+    document.getElementById('loginBtn').onclick = () => {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      if(u === "AIT" && p === "2012") {
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        loadGames();
+        loadIdeas();
+      } else {
+        alert("Wrong Credentials!");
+      }
+    };
+
+    // Publish Game Logic
+    document.getElementById('publishBtn').onclick = () => {
+      const title = document.getElementById('gameTitle').value.trim();
+      const code = document.getElementById('gameCode').value.trim();
+      if(title && code) {
+        db.collection("published_games").add({
+          title: title,
+          code: code,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+          alert("Game Published Successfully! 🎉");
+          document.getElementById('gameTitle').value = '';
+          document.getElementById('gameCode').value = '';
+        });
+      } else {
+        alert("Please fill all fields!");
+      }
+    };
+
+    // Load and Delete Live Games
+    function loadGames() {
+      const container = document.getElementById('gamesContainer');
+      db.collection("published_games").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+        container.innerHTML = '';
+        if(snapshot.empty) {
+          container.innerHTML = "<p>No live games found!</p>";
+          return;
+        }
+        snapshot.forEach((doc) => {
+          const game = doc.data();
+          const card = document.createElement('div');
+          card.className = 'item-card';
+          card.innerHTML = `
+            <div>
+              <strong>🎮 ${game.title}</strong>
+            </div>
+            <button class="delete-btn" onclick="deleteGame('${doc.id}')">❌ Delete Game</button>
+          `;
+          container.appendChild(card);
+        });
+      });
+    }
+
+    function deleteGame(id) {
+      if(confirm("ഈ ഗെയിം വെബ്‌സൈറ്റിൽ നിന്ന് മായ്ച്ചു കളയണം എന്ന് ഉറപ്പാണോ?")) {
+        db.collection("published_games").doc(id).delete().then(() => {
+          alert("Game Deleted Successfully! 🗑️");
+        });
+      }
+    }
+
+    // Load Requested Ideas
+    function loadIdeas() {
+      const container = document.getElementById('ideasContainer');
+      db.collection("requests").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+        container.innerHTML = '';
+        if(snapshot.empty) {
+          container.innerHTML = "<p>No request ideas yet!</p>";
+          return;
+        }
+        snapshot.forEach((doc) => {
+          const item = doc.data();
+          const card = document.createElement('div');
+          card.className = 'item-card';
+          card.innerHTML = `
+            <div>
+              <strong>${item.name || 'User'}:</strong> ${item.idea}
+            </div>
+            <button class="delete-btn" onclick="deleteIdea('${doc.id}')">❌ Delete</button>
+          `;
+          container.appendChild(card);
+        });
+      });
+    }
+
+    function deleteIdea(id) {
+      if(confirm("Delete this idea?")) {
+        db.collection("requests").doc(id).delete();
+      }
+    }
+  </script>
+</body>
+</html>
